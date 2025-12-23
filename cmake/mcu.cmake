@@ -1,63 +1,56 @@
-# 清除之前可能设置的所有标志
-unset(CMAKE_C_FLAGS CACHE)
-unset(CMAKE_EXE_LINKER_FLAGS CACHE)
+set(MCU_FLAGS "-mcpu=${MCU_CPU} -mthumb")
 
-# 基础架构选项
-set(MCU_ARCH_FLAGS "-mcpu=${MCU_CPU} -mthumb")
-
-# FPU 支持
 if(ENABLE_FPU)
-  set(MCU_ARCH_FLAGS "${MCU_ARCH_FLAGS} -mfpu=fpv4-sp-d16 -mfloat-abi=hard")
+    set(MCU_FLAGS "${MCU_FLAGS} -mfpu=fpv4-sp-d16 -mfloat-abi=hard")
 else()
-  set(MCU_ARCH_FLAGS "${MCU_ARCH_FLAGS} -mfloat-abi=soft")
+    set(MCU_FLAGS "${MCU_FLAGS} -mfloat-abi=soft")
 endif()
-
-# 设置编译标志 - 只设置一次
+# 根据构建类型设置优化选项
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(OPTIMIZATION_FLAGS "-Og -g3")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(OPTIMIZATION_FLAGS "-Os")
+elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+    set(OPTIMIZATION_FLAGS "-Os")
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    set(OPTIMIZATION_FLAGS "-O2 -g3")
+else()
+    set(OPTIMIZATION_FLAGS "-Og -g3")  # 默认
+endif()
+# C 标志
 set(CMAKE_C_FLAGS
-    "${MCU_ARCH_FLAGS} 
-    -Wall -Wextra -Wpedantic 
-    -fdata-sections -ffunction-sections 
-    -Og -g3"
-    CACHE STRING "C Compiler Flags" FORCE
+  "${MCU_FLAGS} -Wall -Wextra -Wpedantic -fdata-sections -ffunction-sections ${OPTIMIZATION_FLAGS}"
+  CACHE STRING "C flags" FORCE
 )
 
-set(CMAKE_ASM_FLAGS 
-    "${CMAKE_C_FLAGS} -x assembler-with-cpp -MMD -MP"
-    CACHE STRING "ASM Compiler Flags" FORCE
+# ASM 标志  
+set(CMAKE_ASM_FLAGS
+  "${MCU_FLAGS} -Wall -Wextra -Wpedantic -fdata-sections -ffunction-sections -Og -g3 -x assembler-with-cpp"
+  CACHE STRING "ASM flags" FORCE
 )
-
 set(CMAKE_CXX_FLAGS
     "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-statics"
     CACHE STRING "C++ Compiler Flags" FORCE
 )
-
-# 链接标志 - 只设置一次
-set(LINK_FLAGS "${MCU_ARCH_FLAGS}")
+# 链接标志
+set(LINKER_FLAGS "${MCU_FLAGS}")
 
 if(ENABLE_NANO_LIBS)
-    set(LINK_FLAGS "${LINK_FLAGS} -specs=nano.specs")
+    set(LINKER_FLAGS "${LINKER_FLAGS} -specs=nano.specs")
 endif()
 
 if(ENABLE_NOSYS)
-    set(LINK_FLAGS "${LINK_FLAGS} -specs=nosys.specs")
+    set(LINKER_FLAGS "${LINKER_FLAGS} -specs=nosys.specs")
 endif()
 
-# 添加链接器脚本和其他选项
-set(LINK_FLAGS "
-  ${LINK_FLAGS} 
-  -T ${CMAKE_CURRENT_SOURCE_DIR}/${LINKER_SCRIPT} 
-  -Wl,-Map=${CMAKE_BINARY_DIR}/${PROJECT_NAME}.map 
-  -Wl,--gc-sections 
-  -Wl,--print-memory-usage 
-  -Wl,--start-group -lc -lm 
-  -Wl,--end-group"
-)
+set(LINKER_FLAGS "${LINKER_FLAGS} -T ${CMAKE_CURRENT_SOURCE_DIR}/${LINKER_SCRIPT} -Wl,-Map=${CMAKE_BINARY_DIR}/${PROJECT_NAME}.map -Wl,--gc-sections -Wl,--print-memory-usage -Wl,--start-group -lc -lm -Wl,--end-group")
 
-# 设置链接标志 - 只在这里设置
 set(CMAKE_EXE_LINKER_FLAGS
-    "${LINK_FLAGS}"
-    CACHE STRING "Linker Flags" FORCE
+    "${LINKER_FLAGS}"
+    CACHE STRING "Linker flags" FORCE
 )
 
-# 移除 C++ 特定链接标志（如果有的话）
-# set(CMAKE_CXX_LINK_FLAGS ...)
+set(CMAKE_CXX_LINK_FLAGS
+    "${CMAKE_EXE_LINKER_FLAGS} -Wl,--start-group -lstdc++ -lsupc++ -Wl,--end-group"
+    CACHE STRING "C++ Linker Flags" FORCE
+)
