@@ -1,15 +1,14 @@
 # set for standard
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS ON)
 
-set(CMAKE_EXPORT_BUILD_DATABASE ON)
-set(CMAKE_COLOR_DIAGNOSTICS ON)
+
 # # linker script path
-set(STM_LINK_SCRIPT "stm32f401rct6.ld" CACHE STRING "Linker script path")
+set(LINKER_SCRIPT "stm32f401rct6.ld" CACHE STRING "Linker script path")
 
 # MCU configuration
 set(MCU_FAMILY "STM32F4" CACHE STRING "STM32 Family")
@@ -17,6 +16,8 @@ set(MCU_SERIES "STM32F4xx" CACHE STRING "STM32 Series")
 set(MCU_MODEL "STM32F401xx" CACHE STRING "STM32 Model")
 set(MCU_CPU "cortex-m4" CACHE STRING "CPU Core")
 
+option(CMAKE_EXPORT_COMPILE_COMMANDS "Generate compile_commands.json" ON)
+option(CMAKE_COLOR_DIAGNOSTICS "Color diagnostics" ON)
 # build flags
 option(ENABLE_ASSERT "Enable assertions" OFF)
 option(ENABLE_NANO_LIBS "Use nano libraries" ON)
@@ -38,12 +39,6 @@ set(OPENOCD_SCRIPT "interface/stlink.cfg"
 CACHE STRING "OpenOCD interface script")
 set(OPENOCD_TARGET "target/stm32f4x.cfg"
 CACHE STRING "OpenOCD target script")
-
-# OpenOCD 自定义配置文件 (可选)
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/openocd.cfg)
-  set(OPENOCD_CFG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/openocd.cfg"
-    CACHE STRING "Custom OpenOCD configuration file")
-endif()
 
 # compiler extra
 option(WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)

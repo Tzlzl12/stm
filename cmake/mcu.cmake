@@ -1,51 +1,63 @@
-# ===== MCU 宏定义 =====
-set(MCU_DEFINES
-  ${MCU_MODEL}
-  USE_HAL_DRIVER
-)
+# 清除之前可能设置的所有标志
+unset(CMAKE_C_FLAGS CACHE)
+unset(CMAKE_EXE_LINKER_FLAGS CACHE)
 
-# ===== 基础架构选项 =====
-set(MCU_ARCH_FLAGS
-  -mcpu=${MCU_CPU}
-  -mthumb
-)
+# 基础架构选项
+set(MCU_ARCH_FLAGS "-mcpu=${MCU_CPU} -mthumb")
 
-# ===== FPU 配置 =====
+# FPU 支持
 if(ENABLE_FPU)
-  list(APPEND MCU_ARCH_FLAGS
-    -mfpu=fpv4-sp-d16
-    -mfloat-abi=hard
-  )
-  list(APPEND MCU_DEFINES
-    __FPU_PRESENT=1
-    ARM_MATH_CM4
-  )
+  set(MCU_ARCH_FLAGS "${MCU_ARCH_FLAGS} -mfpu=fpv4-sp-d16 -mfloat-abi=hard")
 else()
-  list(APPEND MCU_ARCH_FLAGS
-    -mfloat-abi=soft
-  )
+  set(MCU_ARCH_FLAGS "${MCU_ARCH_FLAGS} -mfloat-abi=soft")
 endif()
 
-# ===== 导出供 target 使用的编译选项 =====
-# 所有架构相关选项 + 可选 LTO
-set(MCU_COMPILE_OPTIONS
-  ${MCU_ARCH_FLAGS}
-  $<$<BOOL:${ENABLE_LTO}>:-flto>
+# 设置编译标志 - 只设置一次
+set(CMAKE_C_FLAGS
+    "${MCU_ARCH_FLAGS} 
+    -Wall -Wextra -Wpedantic 
+    -fdata-sections -ffunction-sections 
+    -Og -g3"
+    CACHE STRING "C Compiler Flags" FORCE
 )
 
-# ===== 导出供 target 使用的链接选项 =====
-set(MCU_LINK_OPTIONS
-  ${MCU_ARCH_FLAGS}
-  $<$<BOOL:${ENABLE_LTO}>:-flto>
-  -Wl,--gc-sections
-  -Wl,--print-memory-usage
-  -Wl,--cref
-  -Wl,--no-warn-mismatch
-  -static
-  $<$<BOOL:${ENABLE_NANO_LIBS}>:-specs=nano.specs>
-  $<$<BOOL:${ENABLE_NOSYS}>:-specs=nosys.specs>
+set(CMAKE_ASM_FLAGS 
+    "${CMAKE_C_FLAGS} -x assembler-with-cpp -MMD -MP"
+    CACHE STRING "ASM Compiler Flags" FORCE
 )
 
-# ===== 导出宏定义和链接脚本 =====
-set(MCU_DEFINES ${MCU_DEFINES})
-set(LINKER_SCRIPT ${STM_LINK_SCRIPT})
+set(CMAKE_CXX_FLAGS
+    "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-statics"
+    CACHE STRING "C++ Compiler Flags" FORCE
+)
+
+# 链接标志 - 只设置一次
+set(LINK_FLAGS "${MCU_ARCH_FLAGS}")
+
+if(ENABLE_NANO_LIBS)
+    set(LINK_FLAGS "${LINK_FLAGS} -specs=nano.specs")
+endif()
+
+if(ENABLE_NOSYS)
+    set(LINK_FLAGS "${LINK_FLAGS} -specs=nosys.specs")
+endif()
+
+# 添加链接器脚本和其他选项
+set(LINK_FLAGS "
+  ${LINK_FLAGS} 
+  -T ${CMAKE_CURRENT_SOURCE_DIR}/${LINKER_SCRIPT} 
+  -Wl,-Map=${CMAKE_BINARY_DIR}/${PROJECT_NAME}.map 
+  -Wl,--gc-sections 
+  -Wl,--print-memory-usage 
+  -Wl,--start-group -lc -lm 
+  -Wl,--end-group"
+)
+
+# 设置链接标志 - 只在这里设置
+set(CMAKE_EXE_LINKER_FLAGS
+    "${LINK_FLAGS}"
+    CACHE STRING "Linker Flags" FORCE
+)
+
+# 移除 C++ 特定链接标志（如果有的话）
+# set(CMAKE_CXX_LINK_FLAGS ...)
